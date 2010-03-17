@@ -3,7 +3,7 @@
 # Licensed under the terms of the MIT license
 
 from PyQt4.QtCore import QAbstractTableModel, Qt
-from PyQt4 import QtCore
+from PyQt4 import QtCore, QtGui
 
 
 class SystemCallInfo():
@@ -41,13 +41,17 @@ class SystemCallModel(QAbstractTableModel):
         return len(SystemCallInfo.FIELDS)
 
     def data(self, index, role):
+        line = self._syscalls[index.row()]
+
+        if role == Qt.TextColorRole and self._syscall_failed(index):
+            return QtGui.QColor("red")
+
         if role != Qt.DisplayRole:
             return  QtCore.QVariant()
 
         FIELD_NUMBER = ['line', 'time', 'name', 'parameters',
                 'return_value', 'errno', 'elapsed_time']
 
-        line = self._syscalls[index.row()]
         return line[FIELD_NUMBER[index.column()]]
 
     def headerData(self, section, orientation, role):
@@ -58,6 +62,17 @@ class SystemCallModel(QAbstractTableModel):
             return SystemCallInfo.FIELDS[section]
         else:
             return QtCore.QVariant()
+
+    def _syscall_failed(self, index):
+        row = index.row()
+        if len(self._syscalls) <= row:
+            return False
+        try:
+            return_value = int(self._syscalls[row]['return_value'])
+        except:
+            return False
+
+        return (return_value < 0)
 
     def _slot_syscall_parsed(self, syscall_info):
         self._syscalls.extend(syscall_info)
