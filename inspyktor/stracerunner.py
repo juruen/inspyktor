@@ -12,6 +12,7 @@ from PyQt4.QtCore import (
 from PyKDE4 import kdeui, kdecore
 import re
 
+
 class Parser():
     def __init__(self):
         self.regexp = re.compile(
