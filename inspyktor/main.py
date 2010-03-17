@@ -36,14 +36,13 @@ def main():
 
     args = kdecore.KCmdLineArgs.parsedArgs()
 
-    if args.isSet("command"):
-        print args.getOption("command")
-
     a = kdeui.KApplication()
 
     strace_runner = stracerunner.StraceRunner()
-    strace_runner.set_trace_command("ls", ["-l"])
     QtCore.QTimer.singleShot(0, strace_runner.slot_trace_command)
+    if args.isSet("command"):
+        split_str = str(args.getOption("command")).split()
+        strace_runner.set_trace_command(split_str[0], split_str[1:])
 
     main_window = mainwindow.MainWindow()
     main_window.show()
