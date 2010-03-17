@@ -1,0 +1,135 @@
+<ui version="4.0" >
+ <class>CentralWidget</class>
+ <widget class="QWidget" name="CentralWidget" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>584</width>
+    <height>447</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" >
+   <item>
+    <layout class="QHBoxLayout" >
+     <item>
+      <widget class="QLabel" name="commandLabel" >
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Fixed" hsizetype="Preferred" >
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text" >
+        <string>Command:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="KLineEdit" name="commandLine" />
+     </item>
+     <item>
+      <widget class="KPushButton" name="startButton" >
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Fixed" hsizetype="Minimum" >
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text" >
+        <string>Start</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="attachButton" >
+       <property name="text" >
+        <string>Attach...</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="KPushButton" name="stopButton" >
+       <property name="sizePolicy" >
+        <sizepolicy vsizetype="Fixed" hsizetype="Minimum" >
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text" >
+        <string>Stop</string>
+       </property>
+       <property name="shortcut" >
+        <string>Esc</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" >
+     <item>
+      <layout class="QHBoxLayout" >
+       <item>
+        <widget class="QLabel" name="filterLabel" >
+         <property name="text" >
+          <string>Filter:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="KLineEdit" name="filterLine" >
+         <property name="toolTip" >
+          <string>This line allows you to filter the results showed in the underneath table as you type</string>
+         </property>
+         <property name="showClearButton" stdset="0" >
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QTableView" native="1" name="sysCallView" />
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>KLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>klineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KPushButton</class>
+   <extends>QPushButton</extends>
+   <header>kpushbutton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>SyscallTable</class>
+   <extends>QWidget</extends>
+   <header>syscalltable.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>commandLine</sender>
+   <signal>returnPressed()</signal>
+   <receiver>startButton</receiver>
+   <slot>animateClick()</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>202</x>
+     <y>36</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>326</x>
+     <y>21</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
