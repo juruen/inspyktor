@@ -39,10 +39,11 @@ def main():
     a = kdeui.KApplication()
 
     strace_runner = stracerunner.StraceRunner()
-    QtCore.QTimer.singleShot(0, strace_runner.slot_trace_command)
+
     if args.isSet("command"):
         split_str = str(args.getOption("command")).split()
         strace_runner.set_trace_command(split_str[0], split_str[1:])
+        QtCore.QTimer.singleShot(0, strace_runner.slot_trace_command)
 
     main_window = mainwindow.MainWindow()
     main_window.show()
