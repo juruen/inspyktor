@@ -1,28 +1,28 @@
 #! /usr/bin/env python
 # Copyright (c) 2010 Javier Uruen (juruen@warp.es)
-# Licensed under the terms of the MIT license
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt4.QtCore import QAbstractTableModel, Qt
 from PyQt4 import QtCore, QtGui
 
 
-class SystemCallInfo():
-    FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
-
-    def __init__(self, parts=None):
-        if parts is not None:
-            pass
-        else:
-            self.line = None
-            self.name = None
-            self.parameters = None
-            self.return_value = None
-            self.errno = None
-            self.elapsed_time = None
-            self.time = None
-
-
 class SystemCallModel(QAbstractTableModel):
+    FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
+    FIELD_NUMBER = ['line', 'time', 'name', 'parameters',
+                'return_value', 'errno', 'elapsed_time']
+
     def __init__(self):
         QAbstractTableModel.__init__(self, None)
         self._syscalls = []
@@ -34,11 +34,10 @@ class SystemCallModel(QAbstractTableModel):
             QtCore.SIGNAL('syscall_parsed'), self._slot_syscall_parsed)
 
     def rowCount(self, parent=None):
-        #print "rowCount %i" % len(self._syscalls)
         return len(self._syscalls)
 
     def columnCount(self, parent=None):
-        return len(SystemCallInfo.FIELDS)
+        return len(self.FIELDS)
 
     def data(self, index, role):
         line = self._syscalls[index.row()]
@@ -49,19 +48,19 @@ class SystemCallModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return  QtCore.QVariant()
 
-        FIELD_NUMBER = ['line', 'time', 'name', 'parameters',
-                'return_value', 'errno', 'elapsed_time']
-
-        return line[FIELD_NUMBER[index.column()]]
+        return line[self.FIELD_NUMBER[index.column()]]
 
     def headerData(self, section, orientation, role):
         if role != Qt.DisplayRole:
             return QtCore.QVariant()
 
         if orientation == Qt.Horizontal:
-            return SystemCallInfo.FIELDS[section]
+            return self.FIELDS[section]
         else:
             return QtCore.QVariant()
+
+    def clearData(self):
+        self._syscalls = []
 
     def _syscall_failed(self, index):
         row = index.row()
