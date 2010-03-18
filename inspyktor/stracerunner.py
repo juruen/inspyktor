@@ -38,6 +38,7 @@ class Parser():
                 print line
         return parsed_lines
 
+
 class StraceRunner(QObject):
     def __init__(self):
         QObject.__init__(self)
@@ -118,7 +119,10 @@ class StraceRunner(QObject):
 
         self.emit(SIGNAL('syscall_parsed'), self._parser.parse_lines(lines))
 
-    def slot_trace_command(self):
+    def start_trace(self):
         self._prepare_trace()
         self._strace.setOutputChannelMode(kdecore.KProcess.MergedChannels)
         self._strace.start()
+
+    def slot_trace_command(self):
+        self.start_trace()
