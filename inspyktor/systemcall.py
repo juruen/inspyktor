@@ -17,6 +17,7 @@
 from PyQt4.QtCore import QAbstractTableModel, Qt
 from PyQt4 import QtCore, QtGui
 
+
 class SystemCallInfo:
     FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
 
@@ -27,8 +28,7 @@ class SystemCallInfo:
         'parameters',
         'return_value',
         'errno',
-        'elapsed_time'
-    ]
+        'elapsed_time']
 
     INDEX_BY_FIELD = {
         'line': 0,
@@ -37,13 +37,13 @@ class SystemCallInfo:
         'parameters': 3,
         'return_value': 4,
         'errno': 5,
-        'elapsed_time':6
-    }
+        'elapsed_time': 6}
 
     @staticmethod
     def param_by_index(syscall, index):
-       params = syscall['parameters'].split(',')
-       return params[index]
+        params = syscall['parameters'].split(',')
+        return params[index]
+
 
 class FdTracker:
     def __init__(self):
@@ -56,8 +56,7 @@ class FdTracker:
                 'open': True,
                 'write_bytes_attempt': 0,
                 'write_bytes_success': 0,
-                'write_access':0
-            }]
+                'write_access': 0}]
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -67,17 +66,14 @@ class FdTracker:
         fd_ops = self._fd_operations(fd)
 
         parm_func = SystemCallInfo.param_by_index
-        fd_ops.append(
-            {
+        fd_ops.append({
                 'open_time': syscall['time'],
                 'path': parm_func(syscall, 0),
                 'mode': parm_func(syscall, 1),
                 'open': True,
                 'write_bytes_attempt': 0,
                 'write_byts_success': 0,
-                'write_access':0
-            }
-        )
+                'write_access': 0})
 
     def add_write(self, syscall):
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
@@ -88,9 +84,9 @@ class FdTracker:
             return
         last_op = fd_operations[-1]
         print last_op
-        last_op['write_access'] +=  1
+        last_op['write_access'] += 1
         last_op['write_bytes_attempt'] += attempt
-        last_op['write_bytes_success'] +=  success
+        last_op['write_bytes_success'] += success
         print last_op
 
     def _fd_operations(self, fd):
@@ -119,6 +115,7 @@ class SystemCallDecoder:
 
 #    def _decode_write(self, syscall):
  #       return _decode_helper(['file', 'text', 'text'])
+
 
 class SystemCallModel(QAbstractTableModel):
     def __init__(self):

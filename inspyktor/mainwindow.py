@@ -28,9 +28,8 @@ class MainWindow(kdeui.KXmlGuiWindow):
         self.setupGUI()
 
     def init_actions(self):
-        action_collection  = self.actionCollection()
+        action_collection = self.actionCollection()
         self.action_about = kdeui.KStandardAction.aboutApp(
              kdeui.KAboutApplicationDialog(None, self).show,
              actionCollection)
         self.action_about.setShortcutConfigurable(False)
-

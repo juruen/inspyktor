@@ -11,4 +11,3 @@ __authors__ = [
 __thanksto__ = [
          ('Name', 'Task', 'Email', 'Webpage'),
 ]
-
