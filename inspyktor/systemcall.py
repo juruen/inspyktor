@@ -17,18 +17,43 @@
 from PyQt4.QtCore import QAbstractTableModel, Qt
 from PyQt4 import QtCore, QtGui
 
-
-class SystemCallModel(QAbstractTableModel):
+class SystemCallInfo:
     FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
-    FIELD_NUMBER = ['line', 'time', 'name', 'parameters',
+
+    FIELD_BY_INDEX = ['line', 'time', 'name', 'parameters',
                 'return_value', 'errno', 'elapsed_time']
 
+    INDEX_BY_FIELD = { 'line':0, 'time':1, 'name':2, 'parameters':3,
+                'return_value':4, 'errno':5, 'elapsed_time':6}
+
+class SystemCallDecoder:
+
+    def __init__(self):
+        self.fds = {}
+
+    def decode(self, syscalls_info):
+        for syscall in syscalls_info:
+            name = syscall['name']
+            if name == 'open':
+                self._decode_open(syscall)
+
+    def _decode_open(self, syscall):
+        params = syscall['parameters'].split(',')
+        fd = syscall['return_value']
+        if int(fd) < 0:
+            return
+        if not fd in self.fds:
+            self.fds[fd] = []
+        self.fds[fd].append({'time': syscall['time'],
+            'path': params[0], 'mode': params[1]})
+
+class SystemCallModel(QAbstractTableModel):
     def __init__(self):
         QAbstractTableModel.__init__(self, None)
         self._syscalls = []
+        self.decoder = SystemCallDecoder()
 
     def set_strace_runner(self, strace_runner):
-        print "Setting strace runner"
         self.strace_runner = strace_runner
         self.connect(self.strace_runner,
             QtCore.SIGNAL('syscall_parsed'), self._slot_syscall_parsed)
@@ -37,7 +62,7 @@ class SystemCallModel(QAbstractTableModel):
         return len(self._syscalls)
 
     def columnCount(self, parent=None):
-        return len(self.FIELDS)
+        return len(SystemCallInfo.FIELDS)
 
     def data(self, index, role):
         line = self._syscalls[index.row()]
@@ -48,14 +73,14 @@ class SystemCallModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return  QtCore.QVariant()
 
-        return line[self.FIELD_NUMBER[index.column()]]
+        return line[SystemCallInfo.FIELD_BY_INDEX[index.column()]]
 
     def headerData(self, section, orientation, role):
         if role != Qt.DisplayRole:
             return QtCore.QVariant()
 
         if orientation == Qt.Horizontal:
-            return self.FIELDS[section]
+            return SystemCallInfo.FIELDS[section]
         else:
             return QtCore.QVariant()
 
@@ -76,3 +101,4 @@ class SystemCallModel(QAbstractTableModel):
     def _slot_syscall_parsed(self, syscall_info):
         self._syscalls.extend(syscall_info)
         self.reset()
+        self.decoder.decode(syscall_info)
