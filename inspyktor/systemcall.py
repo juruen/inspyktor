@@ -20,32 +20,105 @@ from PyQt4 import QtCore, QtGui
 class SystemCallInfo:
     FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
 
-    FIELD_BY_INDEX = ['line', 'time', 'name', 'parameters',
-                'return_value', 'errno', 'elapsed_time']
+    FIELD_BY_INDEX = [
+        'line',
+        'time',
+        'name',
+        'parameters',
+        'return_value',
+        'errno',
+        'elapsed_time'
+    ]
 
-    INDEX_BY_FIELD = { 'line':0, 'time':1, 'name':2, 'parameters':3,
-                'return_value':4, 'errno':5, 'elapsed_time':6}
+    INDEX_BY_FIELD = {
+        'line': 0,
+        'time': 1,
+        'name': 2,
+        'parameters': 3,
+        'return_value': 4,
+        'errno': 5,
+        'elapsed_time':6
+    }
 
-class SystemCallDecoder:
+    @staticmethod
+    def param_by_index(syscall, index):
+       params = syscall['parameters'].split(',')
+       return params[index]
 
+class FdTracker:
     def __init__(self):
         self.fds = {}
+        for i, v in enumerate(['STDIN', 'STDOUT', 'STDERR']):
+            self.fds[i] = [{
+                'open_time': 0,
+                'path': v,
+                'mode': '',
+                'open': True,
+                'write_bytes_attempt': 0,
+                'write_bytes_success': 0,
+                'write_access':0
+            }]
+
+    def add_open(self, syscall):
+        fd = int(syscall['return_value'])
+        if int(fd) < 0:
+            return
+
+        fd_ops = self._fd_operations(fd)
+
+        parm_func = SystemCallInfo.param_by_index
+        fd_ops.append(
+            {
+                'open_time': syscall['time'],
+                'path': parm_func(syscall, 0),
+                'mode': parm_func(syscall, 1),
+                'open': True,
+                'write_bytes_attempt': 0,
+                'write_byts_success': 0,
+                'write_access':0
+            }
+        )
+
+    def add_write(self, syscall):
+        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        attempt = int(SystemCallInfo.param_by_index(syscall, 0))
+        success = int(syscall['return_value'])
+        fd_operations = self._fd_operations(fd)
+        if not fd_operations:
+            return
+        last_op = fd_operations[-1]
+        print last_op
+        last_op['write_access'] +=  1
+        last_op['write_bytes_attempt'] += attempt
+        last_op['write_bytes_success'] +=  success
+        print last_op
+
+    def _fd_operations(self, fd):
+        if not fd in self.fds:
+            self.fds[fd] = []
+        return self.fds[fd]
+
+
+class SystemCallDecoder:
+    def __init__(self):
+        self.fd_tracker = FdTracker()
 
     def decode(self, syscalls_info):
         for syscall in syscalls_info:
             name = syscall['name']
             if name == 'open':
                 self._decode_open(syscall)
+            elif name == 'write':
+                self._decode_write(syscall)
 
     def _decode_open(self, syscall):
-        params = syscall['parameters'].split(',')
-        fd = syscall['return_value']
-        if int(fd) < 0:
-            return
-        if not fd in self.fds:
-            self.fds[fd] = []
-        self.fds[fd].append({'time': syscall['time'],
-            'path': params[0], 'mode': params[1]})
+        self.fd_tracker.add_open(syscall)
+
+    def _decode_write(self, syscall):
+        self.fd_tracker.add_write(syscall)
+
+#    def _decode_write(self, syscall):
+ #       return _decode_helper(['file', 'text', 'text'])
 
 class SystemCallModel(QAbstractTableModel):
     def __init__(self):
