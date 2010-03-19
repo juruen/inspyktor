@@ -105,17 +105,17 @@ class StraceRunner(QObject):
 
         self.connect(self._strace,
             SIGNAL('finished(int,QProcess::ExitStatus)'),
-            self.slot_process_finished)
+            self._slot_process_finished)
 
         self.connect(self._file_watcher, SIGNAL('fileChanged (QString)'),
-            self.slot_ready_read)
+            self._slot_ready_read)
 
-    def slot_process_finished(self, exitCode, exitStatus):
+    def _slot_process_finished(self, exitCode, exitStatus):
         self._strace.deleteLater()
         self._file_watcher.deleteLater()
         print "Process finished with exit code %i" % exitCode
 
-    def slot_ready_read(self):
+    def _slot_ready_read(self):
         line = self._out_file.readLine()
         lines = []
 
