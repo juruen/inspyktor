@@ -83,11 +83,13 @@ class FdTracker:
         if not fd_operations:
             return
         last_op = fd_operations[-1]
-        print last_op
         last_op['write_access'] += 1
         last_op['write_bytes_attempt'] += attempt
         last_op['write_bytes_success'] += success
-        print last_op
+        # Decode params s/fd/path
+        syscall['parameters_decoded'] = \
+            str(syscall['parameters']) \
+            .replace(str(fd), last_op['path'], 1)
 
     def _fd_operations(self, fd):
         if not fd in self.fds:
@@ -143,7 +145,11 @@ class SystemCallModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return  QtCore.QVariant()
 
-        return line[SystemCallInfo.FIELD_BY_INDEX[index.column()]]
+        field_name = SystemCallInfo.FIELD_BY_INDEX[index.column()]
+        if field_name == 'parameters' and 'parameters_decoded' in line:
+            return line['parameters_decoded']
+        else:
+            return line[field_name]
 
     def headerData(self, section, orientation, role):
         if role != Qt.DisplayRole:
