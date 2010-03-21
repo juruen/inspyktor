@@ -94,7 +94,6 @@ class FdTracker:
         last_op = fd_operations[-1]
         return last_op['path']
 
-
     def _fd_operations(self, fd):
         if not fd in self.fds:
             self.fds[fd] = []
@@ -144,7 +143,6 @@ class SystemCallDecoder:
 
     def _decode_fstat(self, syscall):
         self._decode_base(syscall, ['file'])
-
 
 
 class SystemCallModel(QAbstractTableModel):
