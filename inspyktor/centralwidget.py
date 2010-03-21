@@ -31,8 +31,9 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.sysCallView.setShowGrid(False)
         self.sysCallView.verticalHeader().hide()
         self.sysCallView.hideColumn(0)
-        self.sysCallView.horizontalHeader().setResizeMode(2,
-            QtGui.QHeaderView.Stretch)
+        self.sysCallView.horizontalHeader().setResizeMode(3,
+           QtGui.QHeaderView.Stretch)
+
 
         self.connect(self.startButton, QtCore.SIGNAL('clicked()'),
              self._slot_start_button)
