@@ -86,10 +86,14 @@ class FdTracker:
         last_op['write_access'] += 1
         last_op['write_bytes_attempt'] += attempt
         last_op['write_bytes_success'] += success
-        # Decode params s/fd/path
-        syscall['parameters_decoded'] = \
-            str(syscall['parameters']) \
-            .replace(str(fd), last_op['path'], 1)
+
+    def fd_path(self, fd):
+        fd_operations = self._fd_operations(fd)
+        if not fd_operations:
+            return
+        last_op = fd_operations[-1]
+        return last_op['path']
+
 
     def _fd_operations(self, fd):
         if not fd in self.fds:
@@ -101,22 +105,46 @@ class SystemCallDecoder:
     def __init__(self):
         self.fd_tracker = FdTracker()
 
-    def decode(self, syscalls_info):
+    def process(self, syscalls_info):
         for syscall in syscalls_info:
-            name = syscall['name']
+            name = str(syscall['name'])
             if name == 'open':
                 self._decode_open(syscall)
+            elif name == 'close':
+                self._decode_close(syscall)
             elif name == 'write':
                 self._decode_write(syscall)
+            elif name == 'read':
+                self._decode_read(syscall)
+            elif name.startswith('fstat'):
+                self._decode_fstat(syscall)
+
+    def _decode_base(self, syscall, description):
+            params = str(syscall['parameters']).split(',')
+            for index, desc in enumerate(description):
+                if desc == 'file':
+                    fd = int(SystemCallInfo.param_by_index(syscall, index))
+                    decoded_fd = str(self.fd_tracker.fd_path(fd))
+                    if decoded_fd is not None:
+                        params[index] = decoded_fd
+            syscall['parameters_decoded'] = ','.join(params)
 
     def _decode_open(self, syscall):
         self.fd_tracker.add_open(syscall)
 
+    def _decode_close(self, syscall):
+        self._decode_base(syscall, ['file'])
+
     def _decode_write(self, syscall):
         self.fd_tracker.add_write(syscall)
+        self._decode_base(syscall, ['file'])
 
-#    def _decode_write(self, syscall):
- #       return _decode_helper(['file', 'text', 'text'])
+    def _decode_read(self, syscall):
+        self._decode_base(syscall, ['file'])
+
+    def _decode_fstat(self, syscall):
+        self._decode_base(syscall, ['file'])
+
 
 
 class SystemCallModel(QAbstractTableModel):
@@ -177,4 +205,4 @@ class SystemCallModel(QAbstractTableModel):
     def _slot_syscall_parsed(self, syscall_info):
         self._syscalls.extend(syscall_info)
         self.reset()
-        self.decoder.decode(syscall_info)
+        self.decoder.process(syscall_info)
