@@ -29,7 +29,7 @@ class Parser():
     def __init__(self):
         self.regexp = re.compile(
             '^([0-9]+\.[0-9]+) ([a-z_0-9]+)\((.*)\) += '
-            '((?:[0-9]+)|(?:0x[0-9a-f]+)|(?:-[0-9]+)) '
+            '((?:[0-9]+)|(?:0x[0-9a-f]+)|(?:-[0-9]+)) (\(in.*\) )?'
             '(E[A-Z]+ .*)?<([0-9]+\.[0-9]+)>')
 
     def parse_lines(self, lines):
@@ -43,8 +43,9 @@ class Parser():
                 parsed_info['name'] = match.group(2)
                 parsed_info['parameters'] = match.group(3)
                 parsed_info['return_value'] = match.group(4)
-                parsed_info['errno'] = match.group(5)
-                parsed_info['elapsed_time'] = match.group(6)
+                parsed_info['return_comment'] = match.group(5)
+                parsed_info['errno'] = match.group(6)
+                parsed_info['elapsed_time'] = match.group(7)
                 parsed_lines.append(parsed_info)
             else:
                 print line
@@ -59,6 +60,7 @@ class StraceRunner(QObject):
         self._pid = None
         self._partial_line = ''
         self._parser = Parser()
+        self._strace = None
 
     def set_trace_command(self, command, args=None):
         self._command = command
@@ -116,18 +118,16 @@ class StraceRunner(QObject):
         print "Process finished with exit code %i" % exitCode
 
     def _slot_ready_read(self):
-        line = self._out_file.readLine()
         lines = []
-
-        while not line.isEmpty():
+        while True:
             line = self._out_file.readLine()
-            lines.append(self._partial_line + line)
-            self._partial_line = ''
-
-        if len(lines) > 0:
-            last_line = lines[-1]
-            if len(last_line) > 0 and last_line[-1] == "\n":
-                        self._partial_line = lines.pop(-1)
+            if line.isEmpty():
+                break
+            if not  str(line).endswith("\n"):
+                self._partial_line = line
+            else:
+                lines.append(self._partial_line + line)
+                self._partial_line = ''
 
         self.emit(SIGNAL('syscall_parsed'), self._parser.parse_lines(lines))
 
@@ -138,3 +138,8 @@ class StraceRunner(QObject):
 
     def slot_trace_command(self):
         self.start_trace()
+
+    def slot_stop_trace(self):
+        print "stopping"
+        if self._strace:
+            self._strace.kill()

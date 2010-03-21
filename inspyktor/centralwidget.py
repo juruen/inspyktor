@@ -34,9 +34,10 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.sysCallView.horizontalHeader().setResizeMode(3,
            QtGui.QHeaderView.Stretch)
 
-
         self.connect(self.startButton, QtCore.SIGNAL('clicked()'),
              self._slot_start_button)
+        self.connect(self.stopButton, QtCore.SIGNAL('clicked()'),
+            self._slot_stop_button)
         self.connect(self.filterLine,
             QtCore.SIGNAL('textChanged(const QString&)'),
             self._slot_filter_text_changed)
@@ -47,6 +48,9 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.sysCallModel.strace_runner.set_trace_command(split_cmd[0],
             split_cmd[1:])
         self.sysCallModel.strace_runner.start_trace()
+
+    def _slot_stop_button(self):
+        self.sysCallModel.strace_runner.slot_stop_trace()
 
     def _slot_filter_text_changed(self, filter):
         self.proxyModel.setFilterRegExp(QtCore.QRegExp(filter))
