@@ -16,6 +16,7 @@
 
 from PyQt4.QtCore import QAbstractTableModel, Qt
 from PyQt4 import QtCore, QtGui
+import re
 
 
 class SystemCallInfo:
@@ -57,6 +58,8 @@ class FdTracker:
                 'write_bytes_attempt': 0,
                 'write_bytes_success': 0,
                 'write_access': 0}]
+        self.connect_regexp = None
+        self.bind_regexp = None
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -86,6 +89,39 @@ class FdTracker:
         last_op['write_access'] += 1
         last_op['write_bytes_attempt'] += attempt
         last_op['write_bytes_success'] += success
+
+    def add_connect(self, syscall):
+        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        if not self.connect_regexp:
+            self.connect_regexp = re.compile('.*sa_family=(.*), path="(.*)".*')
+        match = self.connect_regexp.match(syscall['parameters'])
+        fd_ops = self._fd_operations(fd)
+        fd_ops.append({
+                'open_time': syscall['time'],
+                'path': match.group(2),
+                'mode': match.group(1),
+                'open': True,
+                'write_bytes_attempt': 0,
+                'write_byts_success': 0,
+                'write_access': 0})
+
+    def add_bind(self, syscall):
+        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        if not self.bind_regexp:
+            self.bind_regexp = re.compile('.*sa_family=(.*), '
+                'sin_port=htons\((.*)\), '
+                'sin_addr=inet_addr\("(.*)"\)},.*')
+        match = self.bind_regexp.match(syscall['parameters'])
+        fd_ops = self._fd_operations(fd)
+        fd_ops.append({
+                'open_time': syscall['time'],
+                'path': match.group(3) + ':' + match.group(2),
+                'mode': match.group(1),
+                'open': True,
+                'write_bytes_attempt': 0,
+                'write_byts_success': 0,
+                'write_access': 0})
+
 
     def fd_path(self, fd):
         fd_operations = self._fd_operations(fd)
@@ -117,6 +153,13 @@ class SystemCallDecoder:
                 self._decode_read(syscall)
             elif name.startswith('fstat'):
                 self._decode_fstat(syscall)
+            elif name == 'connect':
+                self._decode_connect(syscall)
+            elif name == 'send':
+                self._decode_send(syscall)
+            elif name == 'bind':
+                self._decode_bind(syscall)
+
 
     def _decode_base(self, syscall, description):
             params = str(syscall['parameters']).split(',')
@@ -143,6 +186,16 @@ class SystemCallDecoder:
 
     def _decode_fstat(self, syscall):
         self._decode_base(syscall, ['file'])
+
+    def _decode_connect(self, syscall):
+        self.fd_tracker.add_connect(syscall)
+
+    def _decode_send(self, syscall):
+        self._decode_base(syscall, ['file'])
+
+    def _decode_bind(self, syscall):
+        self.fd_tracker.add_bind(syscall)
+
 
 
 class SystemCallModel(QAbstractTableModel):
