@@ -33,3 +33,7 @@ class MainWindow(kdeui.KXmlGuiWindow):
              kdeui.KAboutApplicationDialog(None, self).show,
              actionCollection)
         self.action_about.setShortcutConfigurable(False)
+
+    def closeEvent(self, event):
+        self.central_widget.slot_stop()
+        event.accept()

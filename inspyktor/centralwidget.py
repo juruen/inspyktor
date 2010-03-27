@@ -37,7 +37,7 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.connect(self.startButton, QtCore.SIGNAL('clicked()'),
              self._slot_start_button)
         self.connect(self.stopButton, QtCore.SIGNAL('clicked()'),
-            self._slot_stop_button)
+            self.slot_stop)
         self.connect(self.filterLine,
             QtCore.SIGNAL('textChanged(const QString&)'),
             self._slot_filter_text_changed)
@@ -49,7 +49,7 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
             split_cmd[1:])
         self.sysCallModel.strace_runner.start_trace()
 
-    def _slot_stop_button(self):
+    def slot_stop(self):
         self.sysCallModel.strace_runner.slot_stop_trace()
 
     def _slot_filter_text_changed(self, filter):

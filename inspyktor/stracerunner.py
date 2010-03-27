@@ -115,6 +115,7 @@ class StraceRunner(QObject):
     def _slot_process_finished(self, exitCode, exitStatus):
         self._strace.deleteLater()
         self._file_watcher.deleteLater()
+        self._strace = None
         print "Process finished with exit code %i" % exitCode
 
     def _slot_ready_read(self):
@@ -140,6 +141,5 @@ class StraceRunner(QObject):
         self.start_trace()
 
     def slot_stop_trace(self):
-        print "stopping"
         if self._strace:
             self._strace.kill()
