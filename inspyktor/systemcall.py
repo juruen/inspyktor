@@ -59,7 +59,7 @@ class FdTracker:
                 'write_bytes_success': 0,
                 'write_access': 0}]
         self.connect_regexp = None
-        self.bind_regexp = None
+        self.sock_regexp = None
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -168,6 +168,9 @@ class SystemCallDecoder:
                 self._decode_socket(syscall)
             elif name == 'listen':
                 self._decode_base(syscall, ['file'])
+            elif name == 'getsockname':
+                self._decode_base(syscall, ['file'])
+
 
     def _decode_base(self, syscall, description):
             params = str(syscall['parameters']).split(',')
