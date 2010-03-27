@@ -105,8 +105,13 @@ class FdTracker:
                 'write_byts_success': 0,
                 'write_access': 0})
 
-    def add_bind(self, syscall):
-        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+    def add_socket(self, syscall):
+        name = str(syscall['name'])
+        if (name == 'bind'):
+            fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        else:
+            fd = int(syscall['return_value'])
+
         if not self.bind_regexp:
             self.bind_regexp = re.compile('.*sa_family=(.*), '
                 'sin_port=htons\((.*)\), '
@@ -158,8 +163,11 @@ class SystemCallDecoder:
             elif name == 'send':
                 self._decode_send(syscall)
             elif name == 'bind':
-                self._decode_bind(syscall)
-
+                self._decode_socket(syscall)
+            elif name == 'accept':
+                self._decode_socket(syscall)
+            elif name == 'listen':
+                self._decode_base(syscall, ['file'])
 
     def _decode_base(self, syscall, description):
             params = str(syscall['parameters']).split(',')
@@ -193,8 +201,9 @@ class SystemCallDecoder:
     def _decode_send(self, syscall):
         self._decode_base(syscall, ['file'])
 
-    def _decode_bind(self, syscall):
-        self.fd_tracker.add_bind(syscall)
+    def _decode_socket(self, syscall):
+        self.fd_tracker.add_socket(syscall)
+        self._decode_base(syscall, ['file'])
 
 
 
