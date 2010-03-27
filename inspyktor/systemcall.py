@@ -112,11 +112,11 @@ class FdTracker:
         else:
             fd = int(syscall['return_value'])
 
-        if not self.bind_regexp:
-            self.bind_regexp = re.compile('.*sa_family=(.*), '
+        if not self.sock_regexp:
+            self.sock_regexp = re.compile('.*sa_family=(.*), '
                 'sin_port=htons\((.*)\), '
                 'sin_addr=inet_addr\("(.*)"\)},.*')
-        match = self.bind_regexp.match(syscall['parameters'])
+        match = self.sock_regexp.match(syscall['parameters'])
         fd_ops = self._fd_operations(fd)
         fd_ops.append({
                 'open_time': syscall['time'],
