@@ -28,7 +28,7 @@ import re
 class Parser():
     def __init__(self):
         self.regexp = re.compile(
-            '^([0-9]+\.[0-9]+) ([a-z_0-9]+)\((.*)\) += '
+            '^([0-9]+)\s+([0-9]+\.[0-9]+) ([a-z_0-9]+)\((.*)\) += '
             '((?:[0-9]+)|(?:0x[0-9a-f]+)|(?:-[0-9]+)) (\(in.*\) )?'
             '(E[A-Z]+ .*)?<([0-9]+\.[0-9]+)>')
 
@@ -39,13 +39,14 @@ class Parser():
             if match:
                 parsed_info = {}
                 parsed_info['line'] = match.group()
-                parsed_info['time'] = match.group(1)
-                parsed_info['name'] = match.group(2)
-                parsed_info['parameters'] = match.group(3)
-                parsed_info['return_value'] = match.group(4)
-                parsed_info['return_comment'] = match.group(5)
-                parsed_info['errno'] = match.group(6)
-                parsed_info['elapsed_time'] = match.group(7)
+                parsed_info['PID'] = match.group(1)
+                parsed_info['time'] = match.group(2)
+                parsed_info['name'] = match.group(3)
+                parsed_info['parameters'] = match.group(4)
+                parsed_info['return_value'] = match.group(5)
+                parsed_info['return_comment'] = match.group(6)
+                parsed_info['errno'] = match.group(7)
+                parsed_info['elapsed_time'] = match.group(8)
                 parsed_lines.append(parsed_info)
             else:
                 print line
@@ -90,7 +91,7 @@ class StraceRunner(QObject):
         self._out_file.open(QIODevice.ReadOnly | QIODevice.Text)
 
         kproc_args = []
-        kproc_args.extend(['-o', temp_file_name, '-ttt', '-T'])
+        kproc_args.extend(['-o', temp_file_name, '-ttt', '-T', '-f'])
         if self.pid() is  None:
             kproc_args.append(self._command)
             kproc_args.extend(self.trace_args())

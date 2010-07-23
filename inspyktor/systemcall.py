@@ -20,10 +20,11 @@ import re
 
 
 class SystemCallInfo:
-    FIELDS = ['Line', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
+    FIELDS = ['Line', 'PID', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
 
     FIELD_BY_INDEX = [
         'line',
+        'PID',
         'time',
         'name',
         'parameters',
@@ -33,12 +34,13 @@ class SystemCallInfo:
 
     INDEX_BY_FIELD = {
         'line': 0,
-        'time': 1,
-        'name': 2,
-        'parameters': 3,
-        'return_value': 4,
-        'errno': 5,
-        'elapsed_time': 6}
+        'PID': 1,
+        'time': 2,
+        'name': 3,
+        'parameters': 4,
+        'return_value': 5,
+        'errno': 6,
+        'elapsed_time': 7}
 
     @staticmethod
     def param_by_index(syscall, index):
