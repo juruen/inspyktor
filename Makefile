@@ -4,6 +4,7 @@ ui:
 	$(MAKE) -C $(CURDIR)/inspyktor/ui
 
 clean:
+	$(MAKE) -C $(CURDIR)/inspyktor clean
 	$(MAKE) -C $(CURDIR)/inspyktor/ui clean
 
 pep8:
