@@ -19,7 +19,7 @@ import sys
 
 from PyQt4 import QtGui, QtCore
 from PyKDE4 import kdeui, kdecore
-from inspyktor import stracerunner, mainwindow
+from inspyktor import stracerunner, systemcall, mainwindow
 
 
 def main():
@@ -51,6 +51,7 @@ def main():
     a = kdeui.KApplication()
 
     strace_runner = stracerunner.StraceRunner()
+    decoder = systemcall.SystemCallDecoder()
 
     if args.isSet("command"):
         split_str = str(args.getOption("command")).split()
@@ -60,5 +61,7 @@ def main():
     main_window = mainwindow.MainWindow()
     main_window.show()
     main_window.central_widget.sysCallModel.set_strace_runner(strace_runner)
+    main_window.central_widget.sysCallModel.set_decoder(decoder)
+    main_window.central_widget.pidTreeModel.set_decoder(decoder)
 
     sys.exit(a.exec_())

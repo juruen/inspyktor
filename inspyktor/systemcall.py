@@ -14,8 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt4.QtCore import QAbstractTableModel, Qt
+from PyQt4.QtCore import QAbstractTableModel, Qt, QObject
 from PyQt4 import QtCore, QtGui
+from inspyktor import tree
 import re
 
 
@@ -142,10 +143,34 @@ class FdTracker:
             self.fds[fd] = []
         return self.fds[fd]
 
+class PIDTracker(QObject):
+    """ A class to track clone and exit system calls """
+    def __init__(self):
+        QObject.__init__(self)
+        self.root_item = tree.TreeItem()
+        self.root_item.pid = -1
+
+    def add_clone(self, syscall):
+        pid = int(syscall['return_value'])
+        if pid < 0:
+            return
+
+        parent_pid = int(syscall['PID'])
+        parent = tree.TreeUtil.get_item_by_pid(self.root_item, parent_pid)
+        if parent is None:
+            parent = tree.TreeItem(self.root_item)
+            parent.pid = parent_pid
+
+        child = tree.TreeItem(parent)
+        child.pid = pid
+
+        self.emit(QtCore.SIGNAL('pid_added'))
+
 
 class SystemCallDecoder:
     def __init__(self):
         self.fd_tracker = FdTracker()
+        self.pid_tracker = PIDTracker()
 
     def process(self, syscalls_info):
         for syscall in syscalls_info:
@@ -172,6 +197,8 @@ class SystemCallDecoder:
                 self._decode_base(syscall, ['file'])
             elif name == 'getsockname':
                 self._decode_base(syscall, ['file'])
+            elif name == 'clone':
+                self._decode_clone(syscall)
 
 
     def _decode_base(self, syscall, description):
@@ -210,13 +237,17 @@ class SystemCallDecoder:
         self.fd_tracker.add_socket(syscall)
         self._decode_base(syscall, ['file'])
 
+    def _decode_clone(self, syscall):
+        self.pid_tracker.add_clone(syscall)
 
 
 class SystemCallModel(QAbstractTableModel):
     def __init__(self):
         QAbstractTableModel.__init__(self, None)
-        self._syscalls = []
-        self.decoder = SystemCallDecoder()
+        self.syscalls = []
+
+    def set_decoder(self, decoder):
+        self.decoder = decoder
 
     def set_strace_runner(self, strace_runner):
         self.strace_runner = strace_runner
@@ -224,13 +255,13 @@ class SystemCallModel(QAbstractTableModel):
             QtCore.SIGNAL('syscall_parsed'), self._slot_syscall_parsed)
 
     def rowCount(self, parent=None):
-        return len(self._syscalls)
+        return len(self.syscalls)
 
     def columnCount(self, parent=None):
         return len(SystemCallInfo.FIELDS)
 
     def data(self, index, role):
-        line = self._syscalls[index.row()]
+        line = self.syscalls[index.row()]
 
         if role == Qt.TextColorRole and self._syscall_failed(index):
             return QtGui.QColor("red")
@@ -254,20 +285,123 @@ class SystemCallModel(QAbstractTableModel):
             return QtCore.QVariant()
 
     def clearData(self):
-        self._syscalls = []
+        self.syscalls = []
 
     def _syscall_failed(self, index):
         row = index.row()
-        if len(self._syscalls) <= row:
+        if len(self.syscalls) <= row:
             return False
         try:
-            return_value = int(self._syscalls[row]['return_value'])
+            return_value = int(self.syscalls[row]['return_value'])
         except:
             return False
 
         return (return_value < 0)
 
     def _slot_syscall_parsed(self, syscall_info):
-        self._syscalls.extend(syscall_info)
+        self.syscalls.extend(syscall_info)
         self.reset()
         self.decoder.process(syscall_info)
+
+class SystemCallProxy(QtGui.QSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super(SystemCallProxy, self).__init__(parent)
+        self.pids_to_filter = []
+
+    def slot_add_pid_filter(self, pids):
+        self.pids_to_filter = pids
+        self.reset()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        if not super(SystemCallProxy, self).filterAcceptsRow(source_row, source_parent):
+            return False
+        if self.pids_to_filter:
+            row_pid = self.sourceModel().syscalls[source_row]['PID']
+            if int(row_pid) in self.pids_to_filter:
+                    return False
+            return True
+        else:
+            return True
+
+class PidTreeModel(QtCore.QAbstractItemModel):
+    def __init__(self,  parent=None):
+        super(PidTreeModel, self).__init__(parent)
+        root = tree.TreeItem()
+        root.pid = -1
+        self.rootItem = root
+
+    def set_decoder(self, decoder):
+        self.decoder = decoder
+        self.pid_tracker = decoder.pid_tracker
+        self.rootItem = decoder.pid_tracker.root_item
+        self.connect(self.pid_tracker,
+            QtCore.SIGNAL('pid_added'), self._slot_pid_added)
+
+    def _slot_pid_added(self):
+        self.reset()
+
+    def columnCount(self, parent):
+        if parent.isValid():
+            return parent.internalPointer().column_count()
+        else:
+            return self.rootItem.column_count()
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None
+        if role != QtCore.Qt.DisplayRole:
+            return None
+
+        item = index.internalPointer()
+        return QtCore.QVariant(item.pid)
+
+    def flags(self, index):
+         if not index.isValid():
+             return QtCore.Qt.NoItemFlags
+
+         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
+    def headerData(self, section, orientation, role):
+        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+            return "PID"
+
+        return None
+
+    def index(self, row, column, parent):
+
+        if row < 0 or column < 0 or row >= self.rowCount(parent) or column >= self.columnCount(parent):
+            return QtCore.QModelIndex()
+
+        if not parent.isValid():
+            parentItem = self.rootItem
+        else:
+            parentItem = parent.internalPointer()
+
+        childItem = parentItem.child(row)
+        if childItem:
+            return self.createIndex(row, column, childItem)
+        else:
+            return QtCore.QModelIndex()
+
+    def parent(self, index):
+        if not index.isValid():
+            return QtCore.QModelIndex()
+
+        childItem = index.internalPointer()
+        parentItem = childItem.parent
+
+        if parentItem == self.rootItem:
+            return QtCore.QModelIndex()
+
+        return self.createIndex(parentItem.row(), 0, parentItem)
+
+    def rowCount(self, parent):
+        if parent.column() > 0:
+            return 0
+
+        if not parent.isValid():
+            parentItem = self.rootItem
+        else:
+            parentItem = parent.internalPointer()
+
+        return parentItem.child_count()

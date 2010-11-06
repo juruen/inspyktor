@@ -24,7 +24,10 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         QtGui.QWidget.__init__(self, parent)
         self.setupUi(self)
         self.sysCallModel = systemcall.SystemCallModel()
-        self.proxyModel = QtGui.QSortFilterProxyModel(self)
+        self.pidTreeModel = systemcall.PidTreeModel()
+        self.pidTreeView.setModel(self.pidTreeModel)
+        self.pidTreeView.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+        self.proxyModel = systemcall.SystemCallProxy(self)
         self.proxyModel.setSourceModel(self.sysCallModel)
         self.sysCallView.setModel(self.proxyModel)
         self.sysCallView.setCornerButtonEnabled(False)
@@ -41,6 +44,9 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.connect(self.filterLine,
             QtCore.SIGNAL('textChanged(const QString&)'),
             self._slot_filter_text_changed)
+        self.connect(self.pidTreeView.selectionModel(),
+            QtCore.SIGNAL('selectionChanged(const QItemSelection &, const QItemSelection & )'),
+            self._slot_pid_selected)
 
     def _slot_start_button(self):
         split_cmd = str(self.commandLine.text()).split()
@@ -54,3 +60,7 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
 
     def _slot_filter_text_changed(self, filter):
         self.proxyModel.setFilterRegExp(QtCore.QRegExp(filter))
+
+    def _slot_pid_selected(self, selection):
+        pids = [index.internalPointer().pid for index in self.pidTreeView.selectedIndexes()]
+        self.proxyModel.slot_add_pid_filter(pids)
