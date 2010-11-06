@@ -28,7 +28,7 @@ import re
 class Parser():
     def __init__(self):
         self.regexp = re.compile(
-            '^(?P<PID>[0-9]+) (?P<time>[0-9]+\.[0-9]+) '
+            '^(?P<PID>[0-9]+)\s+(?P<time>[0-9]+\.[0-9]+) '
             '(?P<name>[a-z_0-9]+)\((?P<parameters>.*)\) += '
             '(?P<return_value>(?:[0-9]+)|(?:0x[0-9a-f]+)|(?:-[0-9]+)) '
             '(?P<return_comment>\(in.*\) )?'
