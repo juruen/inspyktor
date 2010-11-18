@@ -48,6 +48,15 @@ class SystemCallInfo:
         params = syscall['parameters'].split(',')
         return params[index]
 
+class FdInfo:
+    FIELDS = ['Path', 'Mode', 'Written Bytes']
+
+    KEY_BY_FIELD = {
+        'Path': 'path',
+        'Mode': 'mode',
+        'Written Bytes': 'write_bytes_success'}
+
+    COLUMNS = ['path', 'mode', 'write_bytes_success']
 
 class FdTracker:
     def __init__(self):
@@ -302,6 +311,52 @@ class SystemCallModel(QAbstractTableModel):
         self.syscalls.extend(syscall_info)
         self.reset()
         self.decoder.process(syscall_info)
+
+class FdModel(QAbstractTableModel):
+    def __init__(self):
+        QAbstractTableModel.__init__(self, None)
+        self.fds = None
+
+    def set_decoder(self, decoder):
+        self.decoder = decoder
+        self.fds = self.decoder.fd_tracker.fds
+        self.reset()
+
+    def set_strace_runner(self, strace_runner):
+        self.strace_runner = strace_runner
+        self.connect(self.strace_runner,
+            QtCore.SIGNAL('syscall_parsed'), self._slot_syscall_parsed)
+
+    def rowCount(self, parent=None):
+        if self.fds is None:
+            return 0
+        return len(self.fds.keys())
+
+    def columnCount(self, parent=None):
+        return len(FdInfo.COLUMNS) 
+
+    def data(self, index, role):
+        if self.fds is None or role != Qt.DisplayRole:
+            return  QtCore.QVariant()
+        fd = self.fds.keys()[index.row()]
+        return self.fds[fd][0][FdInfo.COLUMNS[index.column()]]
+
+    def headerData(self, section, orientation, role):
+        if role != Qt.DisplayRole:
+            return QtCore.QVariant()
+
+        if orientation == Qt.Horizontal:
+            return FdInfo.COLUMNS[section]
+        else:
+            return QtCore.QVariant()
+
+    def clearData(self):
+        pass
+
+
+    def _slot_syscall_parsed(self, syscall_info):
+        self.reset()
+
 
 class SystemCallProxy(QtGui.QSortFilterProxyModel):
     def __init__(self, parent=None):

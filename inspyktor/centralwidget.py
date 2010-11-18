@@ -24,6 +24,8 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         QtGui.QWidget.__init__(self, parent)
         self.setupUi(self)
         self.sysCallModel = systemcall.SystemCallModel()
+        self.fdModel = systemcall.FdModel()
+        self.fdView.setModel(self.fdModel)
         self.pidTreeModel = systemcall.PidTreeModel()
         self.pidTreeView.setModel(self.pidTreeModel)
         self.pidTreeView.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
@@ -36,6 +38,8 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.sysCallView.hideColumn(0)
         self.sysCallView.horizontalHeader().setResizeMode(3,
            QtGui.QHeaderView.Stretch)
+       
+        
 
         self.connect(self.startButton, QtCore.SIGNAL('clicked()'),
              self._slot_start_button)

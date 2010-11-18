@@ -6,11 +6,11 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>584</width>
-    <height>447</height>
+    <width>591</width>
+    <height>552</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QHBoxLayout">
      <item>
@@ -68,35 +68,38 @@
     </layout>
    </item>
    <item>
-    <layout class="QVBoxLayout">
+    <layout class="QHBoxLayout">
      <item>
-      <layout class="QHBoxLayout">
-       <item>
-        <widget class="QLabel" name="filterLabel">
-         <property name="text">
-          <string>Filter:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="KLineEdit" name="filterLine">
-         <property name="toolTip">
-          <string>This line allows you to filter the results showed in the underneath table as you type</string>
-         </property>
-         <property name="showClearButton" stdset="0">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QLabel" name="filterLabel">
+       <property name="text">
+        <string>Filter:</string>
+       </property>
+      </widget>
      </item>
+     <item>
+      <widget class="KLineEdit" name="filterLine">
+       <property name="toolTip">
+        <string>This line allows you to filter the results showed in the underneath table as you type</string>
+       </property>
+       <property name="showClearButton" stdset="0">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QTreeView" name="pidTreeView"/>
      </item>
      <item>
-      <widget class="QTableView" name="sysCallView"/>
+      <widget class="QTableView" name="fdView"/>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QTableView" name="sysCallView"/>
    </item>
   </layout>
  </widget>

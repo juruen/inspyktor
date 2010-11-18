@@ -63,5 +63,6 @@ def main():
     main_window.central_widget.sysCallModel.set_strace_runner(strace_runner)
     main_window.central_widget.sysCallModel.set_decoder(decoder)
     main_window.central_widget.pidTreeModel.set_decoder(decoder)
+    main_window.central_widget.fdModel.set_decoder(decoder)
 
     sys.exit(a.exec_())
