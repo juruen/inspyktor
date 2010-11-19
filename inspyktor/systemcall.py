@@ -87,7 +87,7 @@ class FdTracker:
                 'mode': parm_func(syscall, 1),
                 'open': True,
                 'write_bytes_attempt': 0,
-                'write_byts_success': 0,
+                'write_bytes_success': 0,
                 'write_access': 0})
 
     def add_write(self, syscall):
@@ -114,7 +114,7 @@ class FdTracker:
                 'mode': match.group(1),
                 'open': True,
                 'write_bytes_attempt': 0,
-                'write_byts_success': 0,
+                'write_bytes_success': 0,
                 'write_access': 0})
 
     def add_socket(self, syscall):
@@ -136,9 +136,8 @@ class FdTracker:
                 'mode': match.group(1),
                 'open': True,
                 'write_bytes_attempt': 0,
-                'write_byts_success': 0,
+                'write_bytes_success': 0,
                 'write_access': 0})
-
 
     def fd_path(self, fd):
         fd_operations = self._fd_operations(fd)
@@ -176,8 +175,9 @@ class PIDTracker(QObject):
         self.emit(QtCore.SIGNAL('pid_added'))
 
 
-class SystemCallDecoder:
+class SystemCallDecoder(QObject):
     def __init__(self):
+        QObject.__init__(self)
         self.fd_tracker = FdTracker()
         self.pid_tracker = PIDTracker()
 
@@ -209,15 +209,17 @@ class SystemCallDecoder:
             elif name == 'clone':
                 self._decode_clone(syscall)
 
+        self.emit(QtCore.SIGNAL('syscall_decoded'))
 
     def _decode_base(self, syscall, description):
             params = str(syscall['parameters']).split(',')
             for index, desc in enumerate(description):
                 if desc == 'file':
                     fd = int(SystemCallInfo.param_by_index(syscall, index))
-                    decoded_fd = str(self.fd_tracker.fd_path(fd))
-                    if decoded_fd is not None:
-                        params[index] = decoded_fd
+                    if fd in self.fd_tracker.fds:
+                        decoded_fd = str(self.fd_tracker.fd_path(fd))
+                        if decoded_fd is not None:
+                            params[index] = decoded_fd
             syscall['parameters_decoded'] = ','.join(params)
 
     def _decode_open(self, syscall):
@@ -320,20 +322,19 @@ class FdModel(QAbstractTableModel):
     def set_decoder(self, decoder):
         self.decoder = decoder
         self.fds = self.decoder.fd_tracker.fds
+        self.connect(self.decoder,
+            QtCore.SIGNAL('syscall_decoded'), self._slot_syscall_decoded)
         self.reset()
 
     def set_strace_runner(self, strace_runner):
         self.strace_runner = strace_runner
-        self.connect(self.strace_runner,
-            QtCore.SIGNAL('syscall_parsed'), self._slot_syscall_parsed)
-
     def rowCount(self, parent=None):
         if self.fds is None:
             return 0
         return len(self.fds.keys())
 
     def columnCount(self, parent=None):
-        return len(FdInfo.COLUMNS) 
+        return len(FdInfo.COLUMNS)
 
     def data(self, index, role):
         if self.fds is None or role != Qt.DisplayRole:
@@ -346,7 +347,7 @@ class FdModel(QAbstractTableModel):
             return QtCore.QVariant()
 
         if orientation == Qt.Horizontal:
-            return FdInfo.COLUMNS[section]
+            return FdInfo.FIELDS[section]
         else:
             return QtCore.QVariant()
 
@@ -354,7 +355,7 @@ class FdModel(QAbstractTableModel):
         pass
 
 
-    def _slot_syscall_parsed(self, syscall_info):
+    def _slot_syscall_decoded(self):
         self.reset()
 
 
