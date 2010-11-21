@@ -49,14 +49,16 @@ class SystemCallInfo:
         return params[index]
 
 class FdInfo:
-    FIELDS = ['Path', 'Mode', 'Written Bytes']
+    FIELDS = ['Path', 'Mode', 'Written Bytes', 'Open Time']
+
 
     KEY_BY_FIELD = {
         'Path': 'path',
         'Mode': 'mode',
-        'Written Bytes': 'write_bytes_success'}
+        'Written Bytes': 'write_bytes_success',
+        'Open Time': 'open_time',}
 
-    COLUMNS = ['path', 'mode', 'write_bytes_success']
+    COLUMNS = ['path', 'mode', 'write_bytes_success', 'open_time']
 
 class FdTracker:
     def __init__(self):
@@ -328,10 +330,15 @@ class FdModel(QAbstractTableModel):
 
     def set_strace_runner(self, strace_runner):
         self.strace_runner = strace_runner
+
     def rowCount(self, parent=None):
         if self.fds is None:
             return 0
-        return len(self.fds.keys())
+        # FIXME This is totally suboptimal
+        rows = 0
+        for fd in self.fds.keys():
+            rows = rows + len(self.fds[fd])
+        return rows
 
     def columnCount(self, parent=None):
         return len(FdInfo.COLUMNS)
@@ -339,8 +346,21 @@ class FdModel(QAbstractTableModel):
     def data(self, index, role):
         if self.fds is None or role != Qt.DisplayRole:
             return  QtCore.QVariant()
-        fd = self.fds.keys()[index.row()]
-        return self.fds[fd][0][FdInfo.COLUMNS[index.column()]]
+
+        # FIXME This is suboptimal and related to the way
+        # we store fd info. It would be better to flatten
+        # the structure
+        rows = 0
+        fd_info = {}
+        for fd in self.fds.keys():
+            num_fds = len(self.fds[fd])
+            if  (rows + num_fds - 1) >= index.row():
+                fd_info = self.fds[fd][(index.row() - rows)]
+                break
+            else:
+                rows = rows + num_fds
+
+        return fd_info[FdInfo.COLUMNS[index.column()]]
 
     def headerData(self, section, orientation, role):
         if role != Qt.DisplayRole:
