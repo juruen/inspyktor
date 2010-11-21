@@ -38,7 +38,7 @@ class CentralWidget(QtGui.QWidget, centralwidget.Ui_CentralWidget):
         self.sysCallView.setShowGrid(False)
         self.sysCallView.verticalHeader().hide()
         self.sysCallView.hideColumn(0)
-        self.sysCallView.horizontalHeader().setResizeMode(3,
+        self.sysCallView.horizontalHeader().setResizeMode(4,
            QtGui.QHeaderView.Stretch)
 
         self.connect(self.startButton, QtCore.SIGNAL('clicked()'),
