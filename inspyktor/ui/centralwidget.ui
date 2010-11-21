@@ -89,17 +89,16 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QTreeView" name="pidTreeView"/>
-     </item>
-     <item>
-      <widget class="QTableView" name="fdView"/>
-     </item>
-    </layout>
+    <widget class="QTableView" name="sysCallView"/>
    </item>
    <item>
-    <widget class="QTableView" name="sysCallView"/>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QTreeView" name="pidTreeView"/>
+     <widget class="QTableView" name="fdView"/>
+    </widget>
    </item>
   </layout>
  </widget>
