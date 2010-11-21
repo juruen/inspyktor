@@ -49,22 +49,27 @@ class SystemCallInfo:
         return params[index]
 
 class FdInfo:
-    FIELDS = ['Path', 'Mode', 'Written Bytes', 'Open Time']
-
+    FIELDS = ['PID', 'Path', 'Mode', 'Written Bytes', 'Open Time']
 
     KEY_BY_FIELD = {
+        'PID' : 'pid',
         'Path': 'path',
         'Mode': 'mode',
         'Written Bytes': 'write_bytes_success',
         'Open Time': 'open_time',}
 
-    COLUMNS = ['path', 'mode', 'write_bytes_success', 'open_time']
+    COLUMNS = ['pid', 'path', 'mode', 'write_bytes_success', 'open_time']
 
 class FdTracker:
     def __init__(self):
         self.fds = {}
+        self.connect_regexp = None
+        self.sock_regexp = None
+
+    def init_std(self, pid):
         for i, v in enumerate(['STDIN', 'STDOUT', 'STDERR']):
             self.fds[i] = [{
+                'pid' : pid,
                 'open_time': 0,
                 'path': v,
                 'mode': '',
@@ -72,8 +77,6 @@ class FdTracker:
                 'write_bytes_attempt': 0,
                 'write_bytes_success': 0,
                 'write_access': 0}]
-        self.connect_regexp = None
-        self.sock_regexp = None
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -84,6 +87,7 @@ class FdTracker:
 
         parm_func = SystemCallInfo.param_by_index
         fd_ops.append({
+                'pid': syscall['PID'],
                 'open_time': syscall['time'],
                 'path': parm_func(syscall, 0),
                 'mode': parm_func(syscall, 1),
@@ -111,6 +115,7 @@ class FdTracker:
         match = self.connect_regexp.match(syscall['parameters'])
         fd_ops = self._fd_operations(fd)
         fd_ops.append({
+                'pid': syscall['PID'],
                 'open_time': syscall['time'],
                 'path': match.group(2),
                 'mode': match.group(1),
@@ -133,6 +138,7 @@ class FdTracker:
         match = self.sock_regexp.match(syscall['parameters'])
         fd_ops = self._fd_operations(fd)
         fd_ops.append({
+                'pid': syscall['PID'],
                 'open_time': syscall['time'],
                 'path': match.group(3) + ':' + match.group(2),
                 'mode': match.group(1),
@@ -210,6 +216,8 @@ class SystemCallDecoder(QObject):
                 self._decode_base(syscall, ['file'])
             elif name == 'clone':
                 self._decode_clone(syscall)
+            elif name.startswith('exec'):
+                self.fd_tracker.init_std(syscall['PID'])
 
         self.emit(QtCore.SIGNAL('syscall_decoded'))
 
