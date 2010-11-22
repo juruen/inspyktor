@@ -66,17 +66,29 @@ class FdTracker:
         self.connect_regexp = None
         self.sock_regexp = None
 
+    def _create_op(self, syscall, init_values):
+        pid = ''
+        time = 0
+        if syscall is not None:
+            pid = syscall['PID']
+            time = syscall['time']
+
+        fd_op = {
+            'pid' : pid,
+            'open_time': time,
+            'path': '',
+            'mode': '',
+            'open': True,
+            'write_bytes_attempt': 0,
+            'write_bytes_success': 0,
+            'write_access': 0,
+            'fcntl': ''
+        }
+        return dict(fd_op.items() + init_values.items())
+
     def init_std(self, pid):
-        for i, v in enumerate(['STDIN', 'STDOUT', 'STDERR']):
-            self.fds[i] = [{
-                'pid' : pid,
-                'open_time': 0,
-                'path': v,
-                'mode': '',
-                'open': True,
-                'write_bytes_attempt': 0,
-                'write_bytes_success': 0,
-                'write_access': 0}]
+        for fd, name in enumerate(['STDIN', 'STDOUT', 'STDERR']):
+            self.fds[fd] = [self._create_op(None, {'pid' : pid, 'path': name})]
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -86,15 +98,15 @@ class FdTracker:
         fd_ops = self._fd_operations(fd)
 
         parm_func = SystemCallInfo.param_by_index
-        fd_ops.append({
-                'pid': syscall['PID'],
-                'open_time': syscall['time'],
-                'path': parm_func(syscall, 0),
-                'mode': parm_func(syscall, 1),
-                'open': True,
-                'write_bytes_attempt': 0,
-                'write_bytes_success': 0,
-                'write_access': 0})
+        fd_ops.append(
+            self._create_op(
+                syscall,
+                {
+                    'path': parm_func(syscall, 0),
+                    'mode': parm_func(syscall, 1)
+                }
+            )
+        )
 
     def add_write(self, syscall):
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
@@ -114,15 +126,15 @@ class FdTracker:
             self.connect_regexp = re.compile('.*sa_family=(.*), path="(.*)".*')
         match = self.connect_regexp.match(syscall['parameters'])
         fd_ops = self._fd_operations(fd)
-        fd_ops.append({
-                'pid': syscall['PID'],
-                'open_time': syscall['time'],
-                'path': match.group(2),
-                'mode': match.group(1),
-                'open': True,
-                'write_bytes_attempt': 0,
-                'write_bytes_success': 0,
-                'write_access': 0})
+        fd_ops.append(
+            self._create_op(
+                syscall,
+                {
+                    'path': match.group(2),
+                    'mode': match.group(1),
+                }
+            )
+        )
 
     def add_socket(self, syscall):
         name = str(syscall['name'])
@@ -137,15 +149,24 @@ class FdTracker:
                 'sin_addr=inet_addr\("(.*)"\)},.*')
         match = self.sock_regexp.match(syscall['parameters'])
         fd_ops = self._fd_operations(fd)
-        fd_ops.append({
-                'pid': syscall['PID'],
-                'open_time': syscall['time'],
-                'path': match.group(3) + ':' + match.group(2),
-                'mode': match.group(1),
-                'open': True,
-                'write_bytes_attempt': 0,
-                'write_bytes_success': 0,
-                'write_access': 0})
+        fd_ops.append(
+            self._create_op(
+                syscall,
+                {
+                    'path': match.group(3) + ':' + match.group(2),
+                    'mode': match.group(1),
+                }
+            )
+        )
+
+    def add_close(self, syscall):
+        if syscall['return_value'] != '0':
+            return
+        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        for fd_op in self._fd_operations(fd):
+            if fd_op['pid'] == syscall['PID']:
+                fd_op['open'] = False
+                break
 
     def fd_path(self, fd):
         fd_operations = self._fd_operations(fd)
@@ -202,6 +223,8 @@ class SystemCallDecoder(QObject):
                 self._decode_read(syscall)
             elif name.startswith('fstat'):
                 self._decode_fstat(syscall)
+            elif name.startswith('fcntl'):
+                self._decode_fcntl(syscall)
             elif name == 'connect':
                 self._decode_connect(syscall)
             elif name == 'send':
@@ -236,6 +259,7 @@ class SystemCallDecoder(QObject):
         self.fd_tracker.add_open(syscall)
 
     def _decode_close(self, syscall):
+        self.fd_tracker.add_close(syscall)
         self._decode_base(syscall, ['file'])
 
     def _decode_write(self, syscall):
@@ -246,6 +270,10 @@ class SystemCallDecoder(QObject):
         self._decode_base(syscall, ['file'])
 
     def _decode_fstat(self, syscall):
+        self._decode_base(syscall, ['file'])
+
+    def _decode_fcntl(self, syscall):
+        self.fd_tracker.add_fcntl(syscall)
         self._decode_base(syscall, ['file'])
 
     def _decode_connect(self, syscall):
