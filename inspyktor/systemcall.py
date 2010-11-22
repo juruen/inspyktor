@@ -21,7 +21,7 @@ import re
 
 
 class SystemCallInfo:
-    FIELDS = ['Line', 'PID', 'Time', 'Name', 'Paramaters', 'Return', 'Errno']
+    FIELDS = ['Line', 'PID', 'Time', 'Name', 'Parameters', 'Return', 'Errno']
 
     FIELD_BY_INDEX = [
         'line',
