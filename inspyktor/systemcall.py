@@ -199,7 +199,7 @@ class FdTracker:
         if fd not in self.fds[fd]:
             raise Exception("No open", "fd")
         for fd_op in self.fds[fd]:
-            if fd_op['pid'] == syscall['PID']:
+            if fd_op['pid'] == syscall['PID'] and fd_op['open']:
                 return fd_op
         raise Exception("No open", "fd")
 
@@ -224,9 +224,19 @@ class PIDTracker(QObject):
 
         child = tree.TreeItem(parent)
         child.pid = pid
+        child.cmd_line = parent.cmd_line
 
         self.emit(QtCore.SIGNAL('pid_added'))
 
+    def add_exec(self, syscall):
+        pid = int(syscall['PID'])
+        node = tree.TreeUtil.get_item_by_pid(self.root_item, pid)
+        if node is None:
+            node = tree.TreeItem(self.root_item)
+            node.pid = pid
+            node.cmd_line = SystemCallInfo.param_by_index(syscall, 0)
+
+        self.emit(QtCore.SIGNAL('pid_added'))
 
 class SystemCallDecoder(QObject):
     def __init__(self):
@@ -265,6 +275,7 @@ class SystemCallDecoder(QObject):
                 self._decode_clone(syscall)
             elif name.startswith('exec'):
                 self.fd_tracker.init_std(syscall['PID'])
+                self.pid_tracker.add_exec(syscall)
 
         self.emit(QtCore.SIGNAL('syscall_decoded'))
 
@@ -489,7 +500,10 @@ class PidTreeModel(QtCore.QAbstractItemModel):
             return None
 
         item = index.internalPointer()
-        return QtCore.QVariant(item.pid)
+        if (index.column() == 0):
+            return QtCore.QVariant(item.pid)
+        else:
+            return QtCore.QVariant(item.cmd_line)
 
     def flags(self, index):
          if not index.isValid():
@@ -499,7 +513,10 @@ class PidTreeModel(QtCore.QAbstractItemModel):
 
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-            return "PID"
+            if (section == 0):
+                return "PID"
+            else:
+                return "Cmd Line"
 
         return None
 

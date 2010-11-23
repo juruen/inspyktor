@@ -19,6 +19,7 @@ class TreeItem:
         self.childItems = []
         self.pid = None
         self.state = None
+        self.cmd_line = ''
         self.parent = parent
         if parent is not None:
             parent.append_child(self)
@@ -42,7 +43,7 @@ class TreeItem:
             return 0
 
     def column_count(self):
-        return 1
+        return 2
 
 
     def data(self):
