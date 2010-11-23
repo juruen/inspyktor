@@ -82,7 +82,8 @@ class FdTracker:
             'write_bytes_attempt': 0,
             'write_bytes_success': 0,
             'write_access': 0,
-            'fcntl': ''
+            'fcntl': '',
+            'close_on_exec': False,
         }
         return dict(fd_op.items() + init_values.items())
 
@@ -107,6 +108,19 @@ class FdTracker:
                 }
             )
         )
+
+    def add_fcntl(self, syscall):
+        fd = int(SystemCallInfo.param_by_index(syscall, 0))
+        cmd = SystemCallInfo.param_by_index(syscall, 1)
+        flags = SystemCallInfo.param_by_index(syscall, 2)
+        if cmd == 'F_SETFD' and flags.find("CLOEXEC"):
+            try:
+                fd_op = self._fd_operations_syscall(syscall, fd)
+                fd_op['close_on_exec'] = True
+            except:
+                print "fd %i not open" % fd
+
+        print "Setting fd: %i to flags %s" % (fd, flags)
 
     def add_write(self, syscall):
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
@@ -163,10 +177,11 @@ class FdTracker:
         if syscall['return_value'] != '0':
             return
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
-        for fd_op in self._fd_operations(fd):
-            if fd_op['pid'] == syscall['PID']:
-                fd_op['open'] = False
-                break
+        try:
+            fd_op = self._fd_operations_syscall(syscall, fd)
+            fd_op['open'] = False
+        except:
+            print "fd %i not open" % fd
 
     def fd_path(self, fd):
         fd_operations = self._fd_operations(fd)
@@ -179,6 +194,15 @@ class FdTracker:
         if not fd in self.fds:
             self.fds[fd] = []
         return self.fds[fd]
+
+    def _fd_operations_syscall(self, syscall, fd):
+        if fd not in self.fds[fd]:
+            raise Exception("No open", "fd")
+        for fd_op in self.fds[fd]:
+            if fd_op['pid'] == syscall['PID']:
+                return fd_op
+        raise Exception("No open", "fd")
+
 
 class PIDTracker(QObject):
     """ A class to track clone and exit system calls """
