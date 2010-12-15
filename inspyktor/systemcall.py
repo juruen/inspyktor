@@ -60,6 +60,12 @@ class FdInfo:
 
     COLUMNS = ['pid', 'path', 'mode', 'write_bytes_success', 'open_time']
 
+class FdNotOpen(Exception):
+    def __init__(self, fd):
+        self.fd = fd
+    def __str__(self):
+        return "file descriptor %i not open" % (self.fd)
+
 class FdTracker:
     def __init__(self):
         self.fds = {}
@@ -89,7 +95,11 @@ class FdTracker:
 
     def init_std(self, pid):
         for fd, name in enumerate(['STDIN', 'STDOUT', 'STDERR']):
-            self.fds[fd] = [self._create_op(None, {'pid' : pid, 'path': name})]
+            op = self._create_op(None, {'pid' : pid, 'path': name})
+            if fd in self.fds:
+                self.fds[fd].append(op)
+            else:
+                self.fds[fd] = [op]
 
     def add_open(self, syscall):
         fd = int(syscall['return_value'])
@@ -113,23 +123,15 @@ class FdTracker:
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
         cmd = SystemCallInfo.param_by_index(syscall, 1)
         flags = SystemCallInfo.param_by_index(syscall, 2)
-        if cmd == 'F_SETFD' and flags.find("CLOEXEC"):
-            try:
+        if cmd.find("F_SETFD") and flags.find("CLOEXEC"):
                 fd_op = self._fd_operations_syscall(syscall, fd)
                 fd_op['close_on_exec'] = True
-            except:
-                print "fd %i not open" % fd
-
-        print "Setting fd: %i to flags %s" % (fd, flags)
 
     def add_write(self, syscall):
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
-        attempt = int(SystemCallInfo.param_by_index(syscall, 0))
+        attempt = int(SystemCallInfo.param_by_index(syscall, 2))
         success = int(syscall['return_value'])
-        fd_operations = self._fd_operations(fd)
-        if not fd_operations:
-            return
-        last_op = fd_operations[-1]
+        last_op = self._fd_operations_syscall(syscall, fd)
         last_op['write_access'] += 1
         last_op['write_bytes_attempt'] += attempt
         last_op['write_bytes_success'] += success
@@ -190,19 +192,30 @@ class FdTracker:
         last_op = fd_operations[-1]
         return last_op['path']
 
+    def slot_clone_fds(self, parent_pid, child_pid):
+        for fd in self.fds:
+            for fd_op in self.fds[fd]:
+                if int(fd_op['pid']) == int(parent_pid) \
+                   and fd_op['open'] \
+                   and not fd_op['close_on_exec']:
+                    new_fd_op = fd_op.copy()
+                    new_fd_op['pid'] = child_pid
+                    self.fds[fd].append(new_fd_op)
+
     def _fd_operations(self, fd):
         if not fd in self.fds:
             self.fds[fd] = []
         return self.fds[fd]
 
     def _fd_operations_syscall(self, syscall, fd):
-        if fd not in self.fds[fd]:
-            raise Exception("No open", "fd")
-        for fd_op in self.fds[fd]:
-            if fd_op['pid'] == syscall['PID'] and fd_op['open']:
-                return fd_op
-        raise Exception("No open", "fd")
-
+        if fd in self.fds:
+            for fd_op in self.fds[fd]:
+                if int(fd_op['pid']) == int(syscall['PID']) and fd_op['open']:
+                    return fd_op
+            print self.fds[fd]
+            raise FdNotOpen(fd)
+        else:
+            raise FdNotOpen(fd)
 
 class PIDTracker(QObject):
     """ A class to track clone and exit system calls """
@@ -226,7 +239,7 @@ class PIDTracker(QObject):
         child.pid = pid
         child.cmd_line = parent.cmd_line
 
-        self.emit(QtCore.SIGNAL('pid_added'))
+        self.emit(QtCore.SIGNAL('pid_added'), parent_pid, pid)
 
     def add_exec(self, syscall):
         pid = int(syscall['PID'])
@@ -236,46 +249,53 @@ class PIDTracker(QObject):
             node.pid = pid
             node.cmd_line = SystemCallInfo.param_by_index(syscall, 0)
 
-        self.emit(QtCore.SIGNAL('pid_added'))
+        self.emit(QtCore.SIGNAL('exec_called'), pid)
 
 class SystemCallDecoder(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.fd_tracker = FdTracker()
         self.pid_tracker = PIDTracker()
+        self.connect(self.pid_tracker,
+            QtCore.SIGNAL('pid_added'), self.fd_tracker.slot_clone_fds)
 
     def process(self, syscalls_info):
         for syscall in syscalls_info:
             name = str(syscall['name'])
-            if name == 'open':
-                self._decode_open(syscall)
-            elif name == 'close':
-                self._decode_close(syscall)
-            elif name == 'write':
-                self._decode_write(syscall)
-            elif name == 'read':
-                self._decode_read(syscall)
-            elif name.startswith('fstat'):
-                self._decode_fstat(syscall)
-            elif name.startswith('fcntl'):
-                self._decode_fcntl(syscall)
-            elif name == 'connect':
-                self._decode_connect(syscall)
-            elif name == 'send':
-                self._decode_send(syscall)
-            elif name == 'bind':
-                self._decode_socket(syscall)
-            elif name == 'accept':
-                self._decode_socket(syscall)
-            elif name == 'listen':
-                self._decode_base(syscall, ['file'])
-            elif name == 'getsockname':
-                self._decode_base(syscall, ['file'])
-            elif name == 'clone':
-                self._decode_clone(syscall)
-            elif name.startswith('exec'):
-                self.fd_tracker.init_std(syscall['PID'])
-                self.pid_tracker.add_exec(syscall)
+            try:
+                if name == 'open':
+                    self._decode_open(syscall)
+                elif name == 'close':
+                    self._decode_close(syscall)
+                elif name == 'write':
+                    self._decode_write(syscall)
+                elif name == 'read':
+                    self._decode_read(syscall)
+                elif name.startswith('fstat'):
+                    self._decode_fstat(syscall)
+                elif name.startswith('fcntl'):
+                    self._decode_fcntl(syscall)
+                elif name == 'connect':
+                    self._decode_connect(syscall)
+                elif name == 'send':
+                    self._decode_send(syscall)
+                elif name == 'bind':
+                    self._decode_socket(syscall)
+                elif name == 'accept':
+                    self._decode_socket(syscall)
+                elif name == 'listen':
+                    self._decode_base(syscall, ['file'])
+                elif name == 'getsockname':
+                    self._decode_base(syscall, ['file'])
+                elif name == 'clone':
+                    self._decode_clone(syscall)
+                elif name.startswith('exec'):
+                    self.fd_tracker.init_std(syscall['PID'])
+                    self.pid_tracker.add_exec(syscall)
+            except FdNotOpen as e:
+                print e
+                print syscall
+
 
         self.emit(QtCore.SIGNAL('syscall_decoded'))
 
@@ -484,7 +504,7 @@ class PidTreeModel(QtCore.QAbstractItemModel):
         self.connect(self.pid_tracker,
             QtCore.SIGNAL('pid_added'), self._slot_pid_added)
 
-    def _slot_pid_added(self):
+    def _slot_pid_added(self, pid):
         self.reset()
 
     def columnCount(self, parent):
