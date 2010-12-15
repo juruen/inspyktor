@@ -15,8 +15,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from inspyktor import unittest_tree
+from inspyktor import unittest_systemcall
 import unittest
 
 if __name__ == '__main__':
-	suite = unittest.TestLoader().loadTestsFromTestCase(unittest_tree.TestTree)
-	unittest.TextTestRunner(verbosity=2).run(suite)
+    test_classes =(
+        unittest_tree.TestTree,
+        unittest_systemcall.TestFdTracker
+    )
+    for test_class in test_classes:
+        suite = unittest.TestLoader().loadTestsFromTestCase(test_class)
+        unittest.TextTestRunner(verbosity=2).run(suite)
