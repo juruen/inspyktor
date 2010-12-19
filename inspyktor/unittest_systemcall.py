@@ -81,13 +81,57 @@ class TestFdTracker(unittest.TestCase):
     def test_add_fcntl(self):
         self._add_files()
         syscall = {
-            'return_value':  100,
-            'parameters': '3, F_SETFD, FD_CLOEXEC',
+            'return_value':  1,
+            'parameters': '3, f_setfd, fd_cloexec',
             'PID': 2,
             'time': '1.0'
         }
         self.fd_tracker.add_fcntl(syscall)
         self.assertTrue(self.fd_tracker.fds[3][1]['close_on_exec'])
+
+    def test_add_close(self):
+        # Test exception is raised if fd is not found
+        syscall = {
+            'return_value':  '0',
+            'parameters': '70',
+            'PID': 1,
+            'time': '1.0'
+        }
+        self.assertRaises(
+            systemcall.FdNotOpen,
+            self.fd_tracker.add_close,
+            syscall
+        )
+
+        self._add_files()
+        syscall_close = {
+            'return_value': '0',
+            'parameters': '3',
+            'PID': 2,
+            'time': '1.0'
+        }
+        self.fd_tracker.add_close(syscall_close)
+        self.assertFalse(self.fd_tracker.fds[3][1]['open'])
+
+    def test_add_connect(self):
+
+    def test_fd_path(self):
+        self.assertRaises(
+            systemcall.FdNotOpen,
+            self.fd_tracker.fd_path,
+            1,
+            4
+        )
+        self._add_files()
+        self.assertEqual(
+            self.fd_tracker.fd_path(1, 3),
+            '"/foo/bar1"'
+        )
+        self.assertEqual(
+            self.fd_tracker.fd_path(2, 3),
+            '"/foo/bar2"'
+        )
+
 
     def _add_files(self):
         """ Add several files to the tracker """
@@ -107,9 +151,14 @@ class TestFdTracker(unittest.TestCase):
                 'PID': 2,
                 'time': '1.0',
 
+            },
+            {
+                'return_value':  4,
+                'parameters': '"/foo/bar3", O_WRONLY',
+                'PID': 2,
+                'time': '1.0',
+
             }
         ]
         for syscall in files_to_add:
             self.fd_tracker.add_open(syscall);
-
-

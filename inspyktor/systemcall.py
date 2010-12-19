@@ -179,18 +179,12 @@ class FdTracker:
         if syscall['return_value'] != '0':
             return
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
-        try:
-            fd_op = self._fd_operations_syscall(syscall, fd)
-            fd_op['open'] = False
-        except:
-            print "fd %i not open" % fd
+        fd_op = self._fd_operations_syscall(syscall, fd)
+        fd_op['open'] = False
 
-    def fd_path(self, fd):
-        fd_operations = self._fd_operations(fd)
-        if not fd_operations:
-            return
-        last_op = fd_operations[-1]
-        return last_op['path']
+    def fd_path(self, pid, fd):
+        fd_op = self._fd_operations_syscall({ 'PID': pid}, fd)
+        return fd_op['path']
 
     def slot_clone_fds(self, parent_pid, child_pid):
         for fd in self.fds:
@@ -212,7 +206,6 @@ class FdTracker:
             for fd_op in self.fds[fd]:
                 if int(fd_op['pid']) == int(syscall['PID']) and fd_op['open']:
                     return fd_op
-            print self.fds[fd]
             raise FdNotOpen(fd)
         else:
             raise FdNotOpen(fd)
@@ -301,11 +294,12 @@ class SystemCallDecoder(QObject):
 
     def _decode_base(self, syscall, description):
             params = str(syscall['parameters']).split(',')
+            pid = syscall['PID']
             for index, desc in enumerate(description):
                 if desc == 'file':
                     fd = int(SystemCallInfo.param_by_index(syscall, index))
                     if fd in self.fd_tracker.fds:
-                        decoded_fd = str(self.fd_tracker.fd_path(fd))
+                        decoded_fd = str(self.fd_tracker.fd_path(pid, fd))
                         if decoded_fd is not None:
                             params[index] = decoded_fd
             syscall['parameters_decoded'] = ','.join(params)
