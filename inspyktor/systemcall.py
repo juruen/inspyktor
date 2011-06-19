@@ -67,6 +67,29 @@ class FdNotOpen(Exception):
         return "file descriptor %i not open" % (self.fd)
 
 class FdTracker:
+    """
+        This class tracks opertations with file descriptors. It stores
+        file descriptors in a hash as follows:
+            self.fds = {
+                1 : [
+                        {
+                            pid: 1,
+                            open_time: 1234
+                            path: '/etc/foo',
+                            open: True,
+                            ...
+                        },
+                        {
+                            pid: 2,
+                            open_time: 4321,
+                            path: '/etc/bar',
+                            open: True,
+                         }
+                ],
+                2 : [ ...
+                ...
+            }
+    """
     def __init__(self):
         self.fds = {}
         self.connect_regexp = None
