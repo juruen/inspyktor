@@ -331,8 +331,8 @@ class SystemCallDecoder(QObject):
         self.fd_tracker.add_open(syscall)
 
     def _decode_close(self, syscall):
-        self.fd_tracker.add_close(syscall)
         self._decode_base(syscall, ['file'])
+        self.fd_tracker.add_close(syscall)
 
     def _decode_write(self, syscall):
         self.fd_tracker.add_write(syscall)
