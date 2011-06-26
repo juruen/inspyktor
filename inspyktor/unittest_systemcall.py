@@ -82,7 +82,7 @@ class TestFdTracker(unittest.TestCase):
         self._add_files()
         syscall = {
             'return_value':  1,
-            'parameters': '3, f_setfd, fd_cloexec',
+            'parameters': '3, F_SETFD, FD_CLOEXEC',
             'PID': 2,
             'time': '1.0'
         }
@@ -114,6 +114,7 @@ class TestFdTracker(unittest.TestCase):
         self.assertFalse(self.fd_tracker.fds[3][1]['open'])
 
     def test_add_connect(self):
+        pass
 
     def test_fd_path(self):
         self.assertRaises(

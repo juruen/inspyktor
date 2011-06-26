@@ -144,9 +144,10 @@ class FdTracker:
 
     def add_fcntl(self, syscall):
         fd = int(SystemCallInfo.param_by_index(syscall, 0))
-        cmd = SystemCallInfo.param_by_index(syscall, 1)
-        flags = SystemCallInfo.param_by_index(syscall, 2)
-        if cmd.find("F_SETFD") and flags.find("CLOEXEC"):
+        cmd = str(SystemCallInfo.param_by_index(syscall, 1))
+        if cmd.find("F_SETFD") > -1:
+            flags = str(SystemCallInfo.param_by_index(syscall, 2))
+            if flags.find("CLOEXEC") > -1:
                 fd_op = self._fd_operations_syscall(syscall, fd)
                 fd_op['close_on_exec'] = True
 
